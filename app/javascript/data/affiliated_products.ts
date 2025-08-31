@@ -1,6 +1,6 @@
 import { cast } from "ts-safe-cast";
 
-import { request } from "$app/utils/request";
+import { request, ResponseError } from "$app/utils/request";
 
 import { PaginationProps } from "$app/components/Pagination";
 import { AffiliatedProduct, SortKey } from "$app/components/server-components/AffiliatedPage";
@@ -27,3 +27,13 @@ export const getPagedAffiliatedProducts = (page?: number, query?: string, sort?:
     cancel: () => abort.abort(),
   };
 };
+
+export async function removeAffiliateAccount(affiliateId: string) {
+  const response = await request({
+    method: "DELETE",
+    accept: "json",
+    url: Routes.products_affiliated_path(affiliateId),
+  });
+  const parsed = cast<{ success: boolean }>(await response.json());
+  if (!response.ok || !parsed.success) throw new ResponseError();
+}

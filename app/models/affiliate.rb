@@ -105,6 +105,10 @@ class Affiliate < ApplicationRecord
     type == GlobalAffiliate.name
   end
 
+  def direct?
+    type == DirectAffiliate.name
+  end
+
   def total_cents_earned_formatted
     formatted_dollar_amount(total_cents_earned, with_currency: affiliate_user.should_be_shown_currencies_always?)
   end

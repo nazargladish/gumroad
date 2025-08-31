@@ -7,4 +7,12 @@ class Products::AffiliatedPolicy < ApplicationPolicy
     user.role_marketing_for?(seller) ||
     user.role_support_for?(seller)
   end
+
+  def destroy?
+    index? &&
+    record.present? &&
+    record.affiliate_user.id == user.id &&
+    record.direct? &&
+    record.alive?
+  end
 end

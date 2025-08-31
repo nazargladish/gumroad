@@ -1,7 +1,8 @@
 import * as React from "react";
+import * as ReactDOM from "react-dom";
 import { createCast } from "ts-safe-cast";
 
-import { getPagedAffiliatedProducts } from "$app/data/affiliated_products";
+import { getPagedAffiliatedProducts, removeAffiliateAccount } from "$app/data/affiliated_products";
 import { formatPriceCentsWithCurrencySymbol } from "$app/utils/currency";
 import { asyncVoid } from "$app/utils/promise";
 import { AbortError, assertResponseError } from "$app/utils/request";
@@ -34,6 +35,7 @@ export type AffiliatedProduct = {
   humanized_revenue: string;
   sales_count: number;
   affiliate_type: "direct_affiliate" | "global_affiliate";
+  affiliate_external_id: string;
 };
 
 type Stats = {
@@ -86,11 +88,67 @@ const StatsSection = (stats: Stats) => {
   );
 };
 
+const AffiliateDetails = ({
+  selectedAffiliate,
+  onClose,
+  onRemove,
+}: {
+  selectedAffiliate: AffiliatedProduct;
+  onClose: () => void;
+  onRemove: (id: string) => Promise<void>;
+}) => {
+  const userAgentInfo = useUserAgentInfo();
+
+  return ReactDOM.createPortal(
+    <aside className="!flex !flex-col">
+      <header>
+        <h2>{selectedAffiliate.product_name}</h2>
+        <button className="close" aria-label="Close" onClick={onClose} />
+      </header>
+
+      <div className="stack">
+        <div>
+          <h5>Type</h5>
+          {selectedAffiliate.affiliate_type === "direct_affiliate" ? "Direct" : "Gumroad"}
+        </div>
+
+        <div>
+          <h5>Commission</h5>
+          {(selectedAffiliate.fee_percentage / 100).toLocaleString([], { style: "percent" })}
+        </div>
+        <div>
+          <h5>Sales</h5>
+          {selectedAffiliate.sales_count.toLocaleString(userAgentInfo.locale)}
+        </div>
+        <div>
+          <h5>Revenue</h5>
+          {selectedAffiliate.humanized_revenue}
+        </div>
+      </div>
+
+      {selectedAffiliate.affiliate_type === "direct_affiliate" ? (
+        <section className="mt-auto flex">
+          <Button
+            style={{ flex: 1 }}
+            color="danger"
+            onClick={asyncVoid(async () => await onRemove(selectedAffiliate.affiliate_external_id))}
+          >
+            Remove
+          </Button>
+        </section>
+      ) : null}
+    </aside>,
+    document.body,
+  );
+};
+
 type AffiliatedProductsTableProps = {
   affiliatedProducts: AffiliatedProduct[];
   pagination: PaginationProps;
   loadAffiliatedProducts: (page: number, sort: Sort<SortKey> | null) => void;
   isLoading: boolean;
+  selectedAffiliate: AffiliatedProduct | null;
+  onSelectAffiliate: (affiliate: AffiliatedProduct | null) => void;
 };
 
 export type SortKey = "product_name" | "sales_count" | "commission" | "revenue";
@@ -100,6 +158,8 @@ const AffiliatedProductsTable = ({
   pagination,
   loadAffiliatedProducts,
   isLoading,
+  selectedAffiliate,
+  onSelectAffiliate,
 }: AffiliatedProductsTableProps) => {
   const [sort, setSort] = React.useState<Sort<SortKey> | null>(null);
   const thProps = useSortingTableDriver<SortKey>(sort, setSort);
@@ -133,9 +193,19 @@ const AffiliatedProductsTable = ({
 
         <tbody>
           {affiliatedProducts.map((affiliatedProduct) => (
-            <tr key={affiliatedProduct.url}>
+            <tr
+              key={affiliatedProduct.url}
+              aria-selected={selectedAffiliate?.url === affiliatedProduct.url}
+              onClick={() => onSelectAffiliate(affiliatedProduct)}
+            >
               <td>
-                <a href={affiliatedProduct.url} title={affiliatedProduct.url} target="_blank" rel="noreferrer">
+                <a
+                  href={affiliatedProduct.url}
+                  title={affiliatedProduct.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {affiliatedProduct.product_name}
                 </a>
               </td>
@@ -157,7 +227,7 @@ const AffiliatedProductsTable = ({
               </td>
 
               <td>
-                <div className="actions">
+                <div className="actions" onClick={(e) => e.stopPropagation()}>
                   <CopyToClipboard tooltipPosition="bottom" copyTooltip="Copy link" text={affiliatedProduct.url}>
                     <Button>
                       <Icon name="link" />
@@ -248,6 +318,7 @@ const AffiliatedPage = ({
   });
   const { affiliatedProducts, pagination } = state;
   const [isLoading, setIsLoading] = React.useState(false);
+  const [selectedAffiliate, setSelectedAffiliate] = React.useState<AffiliatedProduct | null>(null);
   const activeRequest = React.useRef<{ cancel: () => void } | null>(null);
 
   const loadAffiliatedProducts = async (page: number, query?: string, sort?: Sort<SortKey> | null) => {
@@ -280,6 +351,18 @@ const AffiliatedPage = ({
     const url = new URL(window.location.href);
     url.searchParams.set("affiliates", newState.toString());
     window.history.pushState({}, "", url);
+  };
+
+  const handleRemoveAffiliation = async (affiliateId: string) => {
+    try {
+      await removeAffiliateAccount(affiliateId);
+      setSelectedAffiliate(null);
+      showAlert("You have been removed from this affiliation.", "success");
+      void loadAffiliatedProducts(state.pagination.page, state.query);
+    } catch (e) {
+      assertResponseError(e);
+      showAlert(e.message || "Failed to remove affiliation", "error");
+    }
   };
 
   return (
@@ -345,14 +428,25 @@ const AffiliatedPage = ({
                   <h2>No affiliated products found.</h2>
                 </div>
               ) : (
-                <AffiliatedProductsTable
-                  affiliatedProducts={affiliatedProducts}
-                  pagination={pagination}
-                  loadAffiliatedProducts={(page: number, sort: Sort<SortKey> | null) => {
-                    void loadAffiliatedProducts(page, state.query, sort);
-                  }}
-                  isLoading={isLoading}
-                />
+                <>
+                  <AffiliatedProductsTable
+                    affiliatedProducts={affiliatedProducts}
+                    pagination={pagination}
+                    loadAffiliatedProducts={(page: number, sort: Sort<SortKey> | null) => {
+                      void loadAffiliatedProducts(page, state.query, sort);
+                    }}
+                    isLoading={isLoading}
+                    selectedAffiliate={selectedAffiliate}
+                    onSelectAffiliate={setSelectedAffiliate}
+                  />
+                  {selectedAffiliate ? (
+                    <AffiliateDetails
+                      selectedAffiliate={selectedAffiliate}
+                      onClose={() => setSelectedAffiliate(null)}
+                      onRemove={handleRemoveAffiliation}
+                    />
+                  ) : null}
+                </>
               )}
             </div>
           )}

@@ -91,6 +91,17 @@ class AffiliateMailer < ApplicationMailer
          subject: @subject
   end
 
+  def direct_affiliate_self_removal(affiliate_id)
+    @direct_affiliate = DirectAffiliate.find_by(id: affiliate_id)
+    @seller = @direct_affiliate.seller
+    @seller_name = @direct_affiliate.seller.name_or_username
+    @affiliate_name = @direct_affiliate.affiliate_user.name_or_username
+
+    @subject = "#{@affiliate_name} has left your affiliate program"
+    mail to: @seller.form_email,
+         subject: @subject
+  end
+
   def collaborator_creation(collaborator_id)
     @collaborator = Collaborator.find(collaborator_id)
     @seller = @collaborator.seller

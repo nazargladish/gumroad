@@ -40,7 +40,8 @@ class AffiliatedProductsPresenter
           revenue:,
           humanized_revenue: MoneyFormatter.format(revenue, :usd, no_cents_if_whole: true, symbol: true),
           sales_count: product.sales_count,
-          affiliate_type: product.affiliate_type.underscore
+          affiliate_type: product.affiliate_type.underscore,
+          affiliate_external_id: product.affiliate_type.constantize.find(product.affiliate_id).external_id
         }
       end
       { pagination: PagyPresenter.new(pagination).props, affiliated_products: records }

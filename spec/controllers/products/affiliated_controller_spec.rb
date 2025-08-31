@@ -153,4 +153,23 @@ describe Products::AffiliatedController do
       sales_count: [0, 1, 2]
     }
   end
+
+  describe "DELETE destroy" do
+    let!(:affiliate_account) { direct_affiliate }
+
+    before do
+      sign_in affiliate_account.affiliate_user
+      cookies.encrypted[:current_seller_id] = affiliate_account.seller.id
+    end
+
+    it "marks affiliate as deleted, sends email, and returns success" do
+      expect do
+        delete :destroy, params: { id: affiliate_account.external_id }, format: :json
+      end.to change { affiliate_account.reload.deleted_at }.from(nil)
+        .and have_enqueued_mail(AffiliateMailer, :direct_affiliate_self_removal).with(affiliate_account.id)
+
+      expect(response).to be_successful
+      expect(response.parsed_body["success"]).to eq(true)
+    end
+  end
 end
