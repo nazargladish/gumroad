@@ -10,7 +10,6 @@ class Products::AffiliatedPolicy < ApplicationPolicy
 
   def destroy?
     index? &&
-    record.present? &&
     record.affiliate_user.id == user.id &&
     record.direct? &&
     record.alive?

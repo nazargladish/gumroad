@@ -31,6 +31,6 @@ class Products::AffiliatedController < Sellers::BaseController
     end
 
     def set_affiliate_account
-      @affiliate_account = current_seller.affiliate_accounts.find_by_external_id(params[:id])
+      @affiliate_account = current_seller.affiliate_accounts.find_by_external_id(params[:id]) || e404
     end
 end
