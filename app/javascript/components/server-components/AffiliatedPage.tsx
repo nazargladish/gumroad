@@ -2,7 +2,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { createCast } from "ts-safe-cast";
 
-import { getPagedAffiliatedProducts, removeAffiliateAccount } from "$app/data/affiliated_products";
+import { getPagedAffiliatedProducts, deleteAffiliate } from "$app/data/affiliated_products";
 import { formatPriceCentsWithCurrencySymbol } from "$app/utils/currency";
 import { asyncVoid } from "$app/utils/promise";
 import { AbortError, assertResponseError } from "$app/utils/request";
@@ -353,15 +353,15 @@ const AffiliatedPage = ({
     window.history.pushState({}, "", url);
   };
 
-  const handleRemoveAffiliation = async (affiliateId: string) => {
+  const handleDeleteAffiliate = async (affiliateId: string) => {
     try {
-      await removeAffiliateAccount(affiliateId);
+      await deleteAffiliate(affiliateId);
       setSelectedAffiliate(null);
       showAlert("You have been removed from this affiliation.", "success");
       void loadAffiliatedProducts(state.pagination.page, state.query);
     } catch (e) {
       assertResponseError(e);
-      showAlert(e.message || "Failed to remove affiliation", "error");
+      showAlert("Failed to remove affiliation.", "error");
     }
   };
 
@@ -443,7 +443,7 @@ const AffiliatedPage = ({
                     <AffiliateDetails
                       selectedAffiliate={selectedAffiliate}
                       onClose={() => setSelectedAffiliate(null)}
-                      onRemove={handleRemoveAffiliation}
+                      onRemove={handleDeleteAffiliate}
                     />
                   ) : null}
                 </>

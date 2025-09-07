@@ -28,7 +28,7 @@ export const getPagedAffiliatedProducts = (page?: number, query?: string, sort?:
   };
 };
 
-export async function removeAffiliateAccount(affiliateId: string) {
+export async function deleteAffiliate(affiliateId: string) {
   const response = await request({
     method: "DELETE",
     accept: "json",
