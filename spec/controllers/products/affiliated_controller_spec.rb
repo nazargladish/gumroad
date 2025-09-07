@@ -13,6 +13,8 @@ describe Products::AffiliatedController do
   # Users
   let(:creator) { create(:user) }
   let(:affiliate_user) { create(:affiliate_user) }
+  let(:other_affiliate_user) { create(:user) }
+  let(:collaborator_user) { create(:user) }
 
   # Products
   let(:product_one) { create(:product, name: "Creator 1 Product 1", user: creator, price_cents: 1000, purchase_disabled_at: 1.minute.ago) }
@@ -24,6 +26,8 @@ describe Products::AffiliatedController do
   # Affiliates
   let(:global_affiliate) { affiliate_user.global_affiliate }
   let(:direct_affiliate) { create(:direct_affiliate, affiliate_user:, seller: creator, affiliate_basis_points: 1500, apply_to_all_products: true, products: [product_one, product_two], created_at: 1.hour.ago) }
+  let!(:collaborator_affiliate) { create(:collaborator, affiliate_user: collaborator_user, seller: creator) }
+  let(:other_user_affiliate) { create(:direct_affiliate, affiliate_user: other_affiliate_user, seller: creator) }
 
   # Purchases
   let(:direct_sale_one) { create(:purchase_in_progress, seller: creator, link: product_one, affiliate: direct_affiliate) }
@@ -36,12 +40,12 @@ describe Products::AffiliatedController do
     let(:seller) { affiliate_user }
   end
 
-  describe "GET index", :vcr do
-    it_behaves_like "authorize called for action", :get, :index do
-      let(:policy_klass) { Products::AffiliatedPolicy }
-      let(:record) { :affiliated }
-    end
+  it_behaves_like "authorize called for controller", Products::AffiliatedPolicy do
+    let(:record) { :affiliated }
+    let(:request_params) { { id: direct_affiliate.external_id } }
+  end
 
+  describe "GET index", :vcr do
     before do
       affiliate_sales.each do |purchase|
         purchase.process!
@@ -156,26 +160,39 @@ describe Products::AffiliatedController do
   end
 
   describe "DELETE destroy" do
-    let!(:affiliate_account) { direct_affiliate }
-
-    it_behaves_like "authorize called for action", :delete, :destroy do
-      let(:record) { affiliate_account }
-      let(:request_params) { { id: affiliate_account.external_id } }
-    end
-
     before do
-      sign_in affiliate_account.affiliate_user
-      cookies.encrypted[:current_seller_id] = affiliate_account.seller.id
+      sign_in affiliate_user
     end
 
     it "marks affiliate as deleted, sends email, and returns success" do
       expect do
-        delete :destroy, params: { id: affiliate_account.external_id }, format: :json
-      end.to change { affiliate_account.reload.deleted_at }.from(nil)
-        .and have_enqueued_mail(AffiliateMailer, :direct_affiliate_self_removal).with(affiliate_account.id)
+        delete :destroy, params: { id: direct_affiliate.external_id }, format: :json
+      end.to change { direct_affiliate.reload.deleted_at }.from(nil)
+        .and have_enqueued_mail(AffiliateMailer, :direct_affiliate_self_removal).with(direct_affiliate.id)
 
       expect(response).to be_successful
       expect(response.parsed_body["success"]).to eq(true)
+
+      # Subsequent delete attempts return 404
+      delete :destroy, params: { id: direct_affiliate.external_id }, format: :json
+      expect(response).to have_http_status(:not_found)
+    end
+
+    context "when affiliate is not a direct affiliate" do
+      it "returns 404" do
+        delete :destroy, params: { id: global_affiliate.external_id }, format: :json
+        expect(response).to have_http_status(:not_found)
+
+        delete :destroy, params: { id: collaborator_affiliate.external_id }, format: :json
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    context "when affiliate is not owned by current user" do
+      it "returns 404" do
+        delete :destroy, params: { id: other_user_affiliate.external_id }, format: :json
+        expect(response).to have_http_status(:not_found)
+      end
     end
   end
 end
