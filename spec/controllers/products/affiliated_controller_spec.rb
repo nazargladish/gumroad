@@ -36,11 +36,12 @@ describe Products::AffiliatedController do
     let(:seller) { affiliate_user }
   end
 
-  it_behaves_like "authorize called for controller", Products::AffiliatedPolicy do
-    let(:record) { :affiliated }
-  end
-
   describe "GET index", :vcr do
+    it_behaves_like "authorize called for action", :get, :index do
+      let(:policy_klass) { Products::AffiliatedPolicy }
+      let(:record) { :affiliated }
+    end
+
     before do
       affiliate_sales.each do |purchase|
         purchase.process!
@@ -156,6 +157,11 @@ describe Products::AffiliatedController do
 
   describe "DELETE destroy" do
     let!(:affiliate_account) { direct_affiliate }
+
+    it_behaves_like "authorize called for action", :delete, :destroy do
+      let(:record) { affiliate_account }
+      let(:request_params) { { id: affiliate_account.external_id } }
+    end
 
     before do
       sign_in affiliate_account.affiliate_user
