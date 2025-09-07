@@ -13,8 +13,8 @@ describe Products::AffiliatedController do
   # Users
   let(:creator) { create(:user) }
   let(:affiliate_user) { create(:affiliate_user) }
-  let(:other_affiliate_user) { create(:user) }
   let(:collaborator_user) { create(:user) }
+  let(:other_affiliate_user) { create(:user) }
 
   # Products
   let(:product_one) { create(:product, name: "Creator 1 Product 1", user: creator, price_cents: 1000, purchase_disabled_at: 1.minute.ago) }
