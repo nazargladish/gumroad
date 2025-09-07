@@ -3,6 +3,12 @@
 require "spec_helper"
 
 describe AffiliateMailer do
+
+  before do
+    allow(GumroadAddress).to receive(:full).and_return("548 Market St, San Francisco, CA 94104-5401, USA")
+    allow(GlobalConfig).to receive(:get).and_call_original
+    allow(GlobalConfig).to receive(:get).with("MAILER_HEADERS_ENCRYPTION_KEY_V1").and_return("test_encryption_key_123")
+  end
   describe "#notify_affiliate_of_sale" do
     let(:seller) { create(:named_user) }
     let(:product_name) { "Affiliated Product" }
@@ -138,6 +144,20 @@ describe AffiliateMailer do
       expect(mail.subject).to include("#{seller.name} just updated your affiliate status")
       expect(mail.body.encoded).to include("#{seller.name} has removed you from their affiliate program. If you feel this was done accidentally, please reach out to #{seller.name} directly.")
       expect(mail.body.encoded).to include("Thanks for being a part of the team.")
+    end
+  end
+
+  describe "#direct_affiliate_self_removal" do
+    it "sends email to seller" do
+      seller = create(:named_user)
+      affiliate_user = create(:named_user)
+      direct_affiliate = create(:direct_affiliate, seller:, affiliate_user:)
+
+      mail = AffiliateMailer.direct_affiliate_self_removal(direct_affiliate.id)
+      expect(mail.to).to eq([seller.form_email])
+      expect(mail.subject).to include("#{affiliate_user.name_or_username} has left your affiliate program")
+      expect(mail.body.encoded).to include("#{affiliate_user.name_or_username} has removed themselves from your affiliate program.")
+      expect(mail.body.encoded).to include("If you have questions about this change, feel free to reach out to #{affiliate_user.name_or_username} directly.")
     end
   end
 
