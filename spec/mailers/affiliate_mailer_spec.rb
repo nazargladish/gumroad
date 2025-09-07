@@ -3,12 +3,6 @@
 require "spec_helper"
 
 describe AffiliateMailer do
-
-  before do
-    allow(GumroadAddress).to receive(:full).and_return("548 Market St, San Francisco, CA 94104-5401, USA")
-    allow(GlobalConfig).to receive(:get).and_call_original
-    allow(GlobalConfig).to receive(:get).with("MAILER_HEADERS_ENCRYPTION_KEY_V1").and_return("test_encryption_key_123")
-  end
   describe "#notify_affiliate_of_sale" do
     let(:seller) { create(:named_user) }
     let(:product_name) { "Affiliated Product" }
