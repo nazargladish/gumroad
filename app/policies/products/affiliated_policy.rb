@@ -9,6 +9,7 @@ class Products::AffiliatedPolicy < ApplicationPolicy
   end
 
   def destroy?
-    index?
+    user.role_admin_for?(seller) ||
+    user.role_marketing_for?(seller)
   end
 end

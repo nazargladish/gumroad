@@ -26,7 +26,7 @@ describe Products::AffiliatedController do
   # Affiliates
   let(:global_affiliate) { affiliate_user.global_affiliate }
   let(:direct_affiliate) { create(:direct_affiliate, affiliate_user:, seller: creator, affiliate_basis_points: 1500, apply_to_all_products: true, products: [product_one, product_two], created_at: 1.hour.ago) }
-  let!(:collaborator_affiliate) { create(:collaborator, affiliate_user: collaborator_user, seller: creator) }
+  let!(:collaborator_affiliate) { create(:collaborator, affiliate_user:, seller: creator) }
   let(:other_user_affiliate) { create(:direct_affiliate, affiliate_user: other_affiliate_user, seller: creator) }
 
   # Purchases
@@ -160,37 +160,48 @@ describe Products::AffiliatedController do
   end
 
   describe "DELETE destroy" do
-    before do
-      sign_in affiliate_user
-    end
+    context "when affiliate is a direct affiliate owned by current user" do
+      it "soft deletes the affiliate, sends email, and returns success" do
+        expect do
+          delete :destroy, params: { id: direct_affiliate.external_id }, format: :json
+        end.to change { direct_affiliate.reload.deleted_at }.from(nil)
+          .and have_enqueued_mail(AffiliateMailer, :direct_affiliate_self_removal).with(direct_affiliate.id)
 
-    it "marks affiliate as deleted, sends email, and returns success" do
-      expect do
+        expect(response).to be_successful
+        expect(response.parsed_body["success"]).to eq(true)
+      end
+
+      it "returns 404 if deleted twice" do
         delete :destroy, params: { id: direct_affiliate.external_id }, format: :json
-      end.to change { direct_affiliate.reload.deleted_at }.from(nil)
-        .and have_enqueued_mail(AffiliateMailer, :direct_affiliate_self_removal).with(direct_affiliate.id)
-
-      expect(response).to be_successful
-      expect(response.parsed_body["success"]).to eq(true)
-
-      # Subsequent delete attempts return 404
-      delete :destroy, params: { id: direct_affiliate.external_id }, format: :json
-      expect(response).to have_http_status(:not_found)
+        delete :destroy, params: { id: direct_affiliate.external_id }, format: :json
+        expect(response).to have_http_status(:not_found)
+      end
     end
 
     context "when affiliate is not a direct affiliate" do
-      it "returns 404" do
+      it "returns 404 for global affiliate" do
         delete :destroy, params: { id: global_affiliate.external_id }, format: :json
         expect(response).to have_http_status(:not_found)
+      end
 
+      it "returns 404 for collaborator affiliate" do
         delete :destroy, params: { id: collaborator_affiliate.external_id }, format: :json
         expect(response).to have_http_status(:not_found)
       end
     end
 
-    context "when affiliate is not owned by current user" do
+    context "when affiliate belongs to another user" do
       it "returns 404" do
         delete :destroy, params: { id: other_user_affiliate.external_id }, format: :json
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    context "when logged in as an affiliate creator" do
+      before { sign_in creator }
+
+      it "returns 404" do
+        delete :destroy, params: { id: direct_affiliate.external_id }, format: :json
         expect(response).to have_http_status(:not_found)
       end
     end

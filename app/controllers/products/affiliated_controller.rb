@@ -33,7 +33,6 @@ class Products::AffiliatedController < Sellers::BaseController
     end
 
     def set_affiliate_account
-      @affiliate_account = current_seller.direct_affiliate_accounts.alive.find_by_external_id(params[:id])
-      e404_json if @affiliate_account.nil? || @affiliate_account.affiliate_user != current_user
+      @affiliate_account = current_seller.direct_affiliate_accounts.alive.find_by_external_id(params[:id]) || e404_json
     end
 end
