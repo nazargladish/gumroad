@@ -31,7 +31,8 @@ describe "Affiliated Products", type: :system, js: true do
 
   context "when the user has affiliated products" do
     let(:creator) { create(:named_user) }
-    let(:creator_products) { create_list(:product, 10, user: creator, price_cents: 1000) }
+    # Generate a different name for each product
+    let(:creator_products) { create_list(:product, 10, user: creator, price_cents: 1000) { |product, i| product.update!(name: "Product #{i + 1}") } }
     let(:affiliate_one_products) { creator_products.shuffle.first(3) }
     let(:affiliate_two_products) { (creator_products - affiliate_one_products).shuffle.first(2) }
     let(:affiliate_three_products) { (creator_products - affiliate_one_products - affiliate_two_products) }
@@ -64,6 +65,65 @@ describe "Affiliated Products", type: :system, js: true do
       purchases.each do |purchase|
         purchase.process!
         purchase.update_balance_and_mark_successful!
+      end
+    end
+
+    it "allows removing oneself as a direct affiliate" do
+      visit products_affiliated_index_path
+      direct_affiliate_product = affiliate_one_products.first
+
+      find(:table_row, { "Product" => direct_affiliate_product.name, "Type" => "Direct" }).click
+      within_section direct_affiliate_product.name, section_element: :aside do
+        expect(page).to have_text("Type Direct", normalize_ws: true)
+        expect(page).to have_text("Commission 25%", normalize_ws: true)
+        expect(page).to have_text("Sales 1", normalize_ws: true)
+        expect(page).to have_text("Revenue $1.97", normalize_ws: true)
+        expect(page).to have_button("Remove", disabled: false)
+      end
+
+      expect do
+        click_on "Remove"
+        wait_for_ajax
+      end.to change { direct_affiliate.reload.deleted_at }.from(nil)
+
+      expect(page).to have_alert(text: "You have been removed from this affiliation.")
+      expect(page).not_to have_section(direct_affiliate_product.name, section_element: :aside)
+      expect(page).not_to have_table_row({ "Product" => direct_affiliate_product.name, "Type" => "Direct" })
+    end
+
+    it "does not allow removing oneself as a global affiliate" do
+      visit products_affiliated_index_path
+
+      find(:table_row, { "Product" => affiliate_one_products.first.name, "Type" => "Gumroad" }).click
+      within_section affiliate_one_products.first.name, section_element: :aside do
+        expect(page).to have_text("Type Gumroad", normalize_ws: true)
+        expect(page).to have_text("Commission 10%", normalize_ws: true)
+        expect(page).to have_text("Sales 1", normalize_ws: true)
+        expect(page).to have_text("Revenue $0.79", normalize_ws: true)
+        expect(page).to_not have_button("Remove")
+      end
+    end
+
+    context "when logged in as team member without permission" do
+      let(:support_for_seller) { create(:user) }
+
+      before do
+        create(:team_membership, user: support_for_seller, seller:, role: TeamMembership::ROLE_SUPPORT)
+        login_as support_for_seller
+      end
+
+      it "does not allow removing oneself as a direct affiliate" do
+        visit products_affiliated_index_path
+
+        direct_affiliate_product = affiliate_one_products.first
+        find(:table_row, { "Product" => direct_affiliate_product.name, "Type" => "Direct" }).click
+        within_section direct_affiliate_product.name, section_element: :aside do
+          expect(page).to have_text("Type Direct", normalize_ws: true)
+          expect(page).to have_text("Commission 25%", normalize_ws: true)
+          expect(page).to have_text("Sales 1", normalize_ws: true)
+          expect(page).to have_text("Revenue $1.97", normalize_ws: true)
+          expect(page).to have_button("Remove", disabled: true)
+        end
       end
     end
 
