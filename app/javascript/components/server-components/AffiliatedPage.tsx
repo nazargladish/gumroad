@@ -18,6 +18,7 @@ import { ProductsLayout } from "$app/components/ProductsLayout";
 import { showAlert } from "$app/components/server-components/Alert";
 import { Stats as StatsComponent } from "$app/components/Stats";
 import { useDebouncedCallback } from "$app/components/useDebouncedCallback";
+import { useLoggedInUser } from "$app/components/LoggedInUser";
 import { useOriginalLocation } from "$app/components/useOriginalLocation";
 import { useUserAgentInfo } from "$app/components/UserAgent";
 import { Sort, useSortingTableDriver } from "$app/components/useSortingTableDriver";
@@ -98,6 +99,7 @@ const AffiliateDetails = ({
   onRemove: (id: string) => Promise<void>;
 }) => {
   const userAgentInfo = useUserAgentInfo();
+  const loggedInUser = useLoggedInUser();
 
   return ReactDOM.createPortal(
     <aside className="!flex !flex-col">
@@ -132,6 +134,7 @@ const AffiliateDetails = ({
             style={{ flex: 1 }}
             color="danger"
             onClick={asyncVoid(async () => await onRemove(selectedAffiliate.affiliate_external_id))}
+            disabled={!loggedInUser?.policies.direct_affiliate.update}
           >
             Remove
           </Button>
