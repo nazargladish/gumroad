@@ -7,6 +7,8 @@ Capybara.register_driver :chrome do |app|
   options.add_emulation(device_metrics: { width: 1440, height: 900, touch: false })
   options.add_preference("intl.accept_languages", "en-US")
   options.logging_prefs = { driver: "DEBUG" }
+  # https://peter.sh/experiments/chromium-command-line-switches/#disable-backgrounding-occluded-windows
+  options.add_argument("--disable-backgrounding-occluded-windows")
 
   Capybara::Selenium::Driver.new(app,
                                  browser: :chrome,
