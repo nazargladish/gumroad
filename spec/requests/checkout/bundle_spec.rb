@@ -76,7 +76,6 @@ describe "Checkout bundles", :js, type: :system do
 
     it "collects the shipping information" do
       visit physical_bundle.long_url
-
       add_to_cart(physical_bundle)
       check_out(physical_bundle, address: { street: "2031 7th Ave", state: "WA", city: "Seattle", zip_code: "98121" }, should_verify_address: true)
       expect(page).to have_alert(text: "Your purchase was successful!")
