@@ -76,14 +76,14 @@ describe "Checkout bundles", :js, type: :system do
 
     it "collects the shipping information" do
       visit physical_bundle.long_url
+
       add_to_cart(physical_bundle)
-      fill_checkout_form(physical_bundle, address: { street: "2031 7th Ave", state: "WA", city: "Seattle", zip_code: "98121" })
-      click_on "Pay"
+      check_out(physical_bundle, address: { street: "2031 7th Ave", state: "WA", city: "Seattle", zip_code: "98121" }, should_verify_address: true)
       expect(page).to have_alert(text: "Your purchase was successful!")
 
       purchase = Purchase.last
-      expect(purchase.street_address).to eq("2031 7TH AVE")
-      expect(purchase.city).to eq("SEATTLE")
+      expect(purchase.street_address).to eq("2031 7th Ave")
+      expect(purchase.city).to eq("Seattle")
       expect(purchase.state).to eq("WA")
       expect(purchase.zip_code).to eq("98121")
     end
