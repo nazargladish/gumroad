@@ -2,7 +2,7 @@
 
 Stripe.api_version = "2023-10-16; risk_in_requirements_beta=v1"
 # Ref: https://github.com/gumroad/web/issues/17770, https://stripe.com/docs/rate-limits#object-lock-timeouts
-Stripe.max_network_retries = 3
+Stripe.max_network_retries = Rails.env.test? ? 5 : 3
 if Rails.env.production?
   STRIPE_PUBLIC_KEY = GlobalConfig.get("STRIPE_PUBLIC_KEY_PROD", "pk_live_Db80xIzLPWhKo1byPrnERmym")
 else
