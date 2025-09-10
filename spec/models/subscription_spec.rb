@@ -3680,28 +3680,46 @@ describe Subscription, :vcr do
     let(:subscription) { create(:subscription, link: product, seller: seller) }
 
     before do
-      subscription.update!(original_purchase:)
+      subscription.update!(original_purchase: original_purchase)
     end
 
     context "when original purchase has VAT ID in tax info" do
       before do
-        subscription.original_purchase.build_purchase_sales_tax_info(business_vat_id: "VAT12345")
+        subscription.original_purchase.build_purchase_sales_tax_info(business_vat_id: "ORIGVAT")
         subscription.original_purchase.save!
       end
 
       it "sets the VAT ID from the original purchase's tax info" do
         subscription.send(:get_vat_id_from_original_purchase, purchase)
-        expect(purchase.business_vat_id).to eq("VAT12345")
+        expect(purchase.business_vat_id).to eq("ORIGVAT")
+      end
+    end
+
+    context "when original purchase has VAT ID and there is also a refund with VAT ID" do
+      before do
+        subscription.original_purchase.build_purchase_sales_tax_info(business_vat_id: "ORIGVAT")
+        subscription.original_purchase.save!
+
+        refund = create(:refund,
+                        purchase:,
+                        amount_cents: 0,
+                        gumroad_tax_cents: 1000)
+        refund.business_vat_id = "REFUNDDVAT"
+        refund.save!
+      end
+
+      it "prefers the VAT ID from the original purchase over the refund" do
+        subscription.send(:get_vat_id_from_original_purchase, purchase)
+        expect(purchase.business_vat_id).to eq("ORIGVAT")
       end
     end
 
     context "when original purchase doesn't have VAT ID in tax info, but has a refund with VAT ID" do
       before do
         refund = create(:refund,
-          purchase:,
-          amount_cents: 0,
-          gumroad_tax_cents: 1000
-        )
+                        purchase: subscription.original_purchase,
+                        amount_cents: 0,
+                        gumroad_tax_cents: 1000)
         refund.business_vat_id = "VAT67890"
         refund.save!
       end
@@ -3709,6 +3727,38 @@ describe Subscription, :vcr do
       it "sets the VAT ID from the refund" do
         subscription.send(:get_vat_id_from_original_purchase, purchase)
         expect(purchase.business_vat_id).to eq("VAT67890")
+      end
+    end
+
+    context "when there are multiple refunds with VAT ids" do
+      before do
+        older_refund = create(:refund,
+                              purchase:,
+                              amount_cents: 0,
+                              gumroad_tax_cents: 1000,
+                              created_at: 2.days.ago)
+        older_refund.business_vat_id = "VATOLD"
+        older_refund.save!
+
+        newer_refund = create(:refund,
+                              purchase:,
+                              amount_cents: 0,
+                              gumroad_tax_cents: 1000,
+                              created_at: 1.day.ago)
+        newer_refund.business_vat_id = "VATNEW"
+        newer_refund.save!
+      end
+
+      it "copies the VAT id from the latest refund" do
+        subscription.send(:get_vat_id_from_original_purchase, purchase)
+        expect(purchase.business_vat_id).to eq("VATNEW")
+      end
+    end
+
+    context "when there is no VAT id on the original purchase, and no refunds with VAT ids" do
+      it "does not set VAT id on the new purchase in subscription" do
+        subscription.send(:get_vat_id_from_original_purchase, purchase)
+        expect(purchase.business_vat_id).to be_nil
       end
     end
   end
