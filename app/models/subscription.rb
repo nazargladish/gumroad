@@ -934,9 +934,8 @@ class Subscription < ApplicationRecord
       elsif (refund = Refund.joins(:purchase)
                             .where(purchases: { subscription_id: id })
                             .where(gumroad_tax_cents: 0.., amount_cents: 0)
-                            .where(Arel.sql("JSON_EXTRACT(refunds.json_data, '$.business_vat_id') IS NOT NULL"))
-                            .order("refunds.created_at DESC")
-                            .take)
+                            .select { |r| r.business_vat_id.present? }
+                            .max_by(&:created_at))
         purchase.business_vat_id = refund.business_vat_id
       end
     end
