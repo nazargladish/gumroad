@@ -3717,7 +3717,7 @@ describe Subscription, :vcr do
     context "when original purchase doesn't have VAT ID in tax info, but has a refund with VAT ID" do
       before do
         refund = create(:refund,
-                        purchase: subscription.original_purchase,
+                        purchase:,
                         amount_cents: 0,
                         gumroad_tax_cents: 1000)
         refund.business_vat_id = "VAT67890"
