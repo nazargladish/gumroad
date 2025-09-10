@@ -934,7 +934,7 @@ class Subscription < ApplicationRecord
       elsif (refund = Refund.joins(:purchase)
                             .where(purchases: { subscription_id: id })
                             .where(gumroad_tax_cents: 0.., amount_cents: 0)
-                            .select { |r| r.business_vat_id.present? }
+                            .select { |refund| refund.business_vat_id.present? }
                             .max_by(&:created_at))
         purchase.business_vat_id = refund.business_vat_id
       end
