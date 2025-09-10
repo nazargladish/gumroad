@@ -3720,13 +3720,13 @@ describe Subscription, :vcr do
                         purchase:,
                         amount_cents: 0,
                         gumroad_tax_cents: 1000)
-        refund.business_vat_id = "VAT67890"
+        refund.business_vat_id = "REFUNDDVAT"
         refund.save!
       end
 
       it "sets the VAT ID from the refund" do
         subscription.send(:get_vat_id_from_original_purchase, purchase)
-        expect(purchase.business_vat_id).to eq("VAT67890")
+        expect(purchase.business_vat_id).to eq("REFUNDDVAT")
       end
     end
 
