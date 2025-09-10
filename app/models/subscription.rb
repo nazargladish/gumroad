@@ -931,12 +931,11 @@ class Subscription < ApplicationRecord
     def get_vat_id_from_original_purchase(purchase)
       if (vat_id = original_purchase.purchase_sales_tax_info&.business_vat_id)
         purchase.business_vat_id = vat_id
-      elsif (refund = Refund.joins(:purchase)
-                          .where(purchases: { subscription_id: id })
-                          .where("refunds.gumroad_tax_cents > 0")
-                          .where("refunds.amount_cents = 0")
-                          .select { |r| r.business_vat_id.present? }
-                          .first)
+      elsif (refund = Refund.where(purchase: purchase)
+                            .where(gumroad_tax_cents: 0.., amount_cents: 0)
+                            .where(Arel.sql("JSON_EXTRACT(json_data, '$.business_vat_id') IS NOT NULL"))
+                            .order(created_at: :desc)
+                            .take)
         purchase.business_vat_id = refund.business_vat_id
       end
     end
