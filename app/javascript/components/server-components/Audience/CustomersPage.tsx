@@ -51,6 +51,7 @@ import {
   formatPriceCentsWithoutCurrencySymbol,
 } from "$app/utils/currency";
 import { formatCallDate } from "$app/utils/date";
+import { isValidEmail } from "$app/utils/email";
 import FileUtils from "$app/utils/file";
 import { asyncVoid } from "$app/utils/promise";
 import { RecurrenceId, recurrenceLabels } from "$app/utils/recurringPricing";
@@ -244,7 +245,7 @@ const CustomersPage = ({
   const timeZoneAbbreviation = format(new Date(), "z", { timeZone: currentSeller.timeZone.name });
 
   return (
-    <main>
+    <main className="h-full">
       <header>
         <h1>Sales</h1>
         <div className="actions">
@@ -1523,6 +1524,15 @@ const EmailSection = ({
 
   const handleSave = async () => {
     if (!onSave) return;
+
+    const emailError =
+      email.length === 0 ? "Email must be provided" : !isValidEmail(email) ? "Please enter a valid email" : null;
+
+    if (emailError) {
+      showAlert(emailError, "error");
+      return;
+    }
+
     setIsLoading(true);
     await onSave(email);
     setIsLoading(false);
